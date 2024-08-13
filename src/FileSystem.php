@@ -41,7 +41,6 @@ class FileSystem
             $parts = explode(DIRECTORY_SEPARATOR, $relativePath);
             $current = &$tree['contents'];
 
-
             foreach ($parts as $part) {
                 $name = $fileInfo->isFile()
                     ? pathinfo($part, PATHINFO_FILENAME)
