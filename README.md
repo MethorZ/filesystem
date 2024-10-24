@@ -1,71 +1,82 @@
-# MethorZ Filesystem
+# FileSystem Library
 
-MethorZ Filesystem is a robust and flexible filesystem abstraction library for PHP. It provides a consistent interface for working with various filesystem operations.
+## Overview
+
+The FileSystem Library is a PHP package that provides a comprehensive representation of files and directories. It includes functionality for reading, scanning, copying, renaming, and removing files and directories, with support for recursive operations and filtering based on extensions, directories, and file names.
 
 ## Features
 
-- **File Operations**: Create, read, update, and delete files.
-- **Directory Operations**: Create, list, and delete directories.
-- **Stream Support**: Work with file streams for efficient file handling.
-- **PHP 8.3**: Fully compatible with PHP 8.3.
+- **File and Directory Representation**: Classes to represent files and directories.
+- **Recursive Operations**: Support for recursive scanning, copying, and removing of directories.
+- **Filtering**: Ability to ignore specific file extensions, directories, and files during operations.
+- **Unit Tests**: Comprehensive unit tests to ensure the functionality of the library.
 
 ## Installation
 
-You can install the package via Composer:
+Install the package via Composer:
 
-```bash
+```sh
 composer require methorz/filesystem
 ```
 
-Usage
-Here's a basic example of how to use the MarkMe library:
+## Usage
+Reading a File or Directory
 
-```bash
-<?php
+```php
+use MethorZ\FileSystem\FileSystem;
+use MethorZ\FileSystem\Directory;
+use MethorZ\FileSystem\File;
 
-require 'vendor/autoload.php';
+$path = '/path/to/your/file/or/directory';
+$recursiveScan = true;
+$extensions = ['txt', 'php'];
 
-use MethorZ\Filesystem\Filesystem;
+$fsObject = FileSystem::read($path, $recursiveScan, $extensions);
 
-$filesystem = new Filesystem();
-
-// Create a new file
-$filesystem->write('example.txt', 'Hello, World!');
-
-// Read the file content
-$content = $filesystem->read('example.txt');
-echo $content; // Outputs: Hello, World!
-
-// Delete the file
-$filesystem->delete('example.txt');
+if ($fsObject instanceof Directory) {
+    echo "It's a directory!";
+} elseif ($fsObject instanceof File) {
+    echo "It's a file!";
+}
 ```
 
-Directory Operations
-You can also perform various directory operations. Here's an example:
+Copying Files and Directories
 
-```bash
-<?php
+```php
+use MethorZ\FileSystem\FileSystem;
 
-use MethorZ\Filesystem\Filesystem;
+$source = '/path/to/source';
+$destination = '/path/to/destination';
 
-$filesystem = new Filesystem();
-
-// Create a new directory
-$filesystem->createDirectory('example-dir');
-
-// List files in a directory
-$files = $filesystem->listFiles('example-dir');
-print_r($files);
-
-// Delete the directory
-$filesystem->deleteDirectory('example-dir');
+FileSystem::copy($source, $destination);
 ```
 
-## Contributing
-Contributions are welcome! Please submit a pull request or open an issue to discuss your ideas.  
+Ignoring Specific Files, Directories, and Extensions
+
+```php
+use MethorZ\FileSystem\FileSystem;
+
+FileSystem::ignoreExtensions(['log', 'tmp']);
+FileSystem::ignoreDirectories(['cache', 'logs']);
+FileSystem::ignoreFiles(['README.md', '.gitignore']);
+```
+
+Creating and Removing Directories
+
+```php
+use MethorZ\FileSystem\FileSystem;
+
+$path = '/path/to/new/directory';
+FileSystem::createDirectory($path);
+
+FileSystem::remove($path);
+```
 
 ## License
-This project is licensed under the proprietary license. See the LICENSE file for more details.  
+This project is licensed under the MIT License. See the LICENSE file for details.  
 
-## Contact
-For any inquiries, please contact MethorZ at methorz@spammerz.de.
+## Author
+MethorZ - methorz@spammerz.de  
+
+## Contributing
+Contributions are welcome! Please open an issue or submit a pull request for any changes.  <hr></hr> This README provides an overview of the FileSystem Library, including installation instructions, usage examples, and information on running unit tests. For more detailed documentation, please refer to the source code and comments within the library.

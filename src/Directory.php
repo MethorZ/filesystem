@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace MethorZ\FileSystem;
 
+use MethorZ\FileSystem\Exception\DirectoryException;
+
 /**
  * Directory representation
  *
@@ -11,83 +13,103 @@ namespace MethorZ\FileSystem;
  * @author Thorsten Merz <methorz@spammerz.de>
  * @copyright MethorZ
  */
-readonly class Directory
+class Directory extends FileSystem
 {
     /**
-     * Constructor
+     * Directory contents
      *
-     * @param array<\MethorZ\FileSystem\Directory|\MethorZ\FileSystem\File> $content
+     * @var array<\MethorZ\FileSystem\Directory|\MethorZ\FileSystem\File>
+     */
+    private array $contents = [];
+
+    /**
+     * Constructor
      */
     public function __construct(
-        private readonly string $path,
-        private readonly string $name,
-        private readonly array $content = []
+        private readonly string $path
     ) {
+        // Make sure the path is a directory and that it exists
+        if (!is_dir($this->path)) {
+            throw new DirectoryException('The provided path is not a directory or does not exist.');
+        }
+
+        $this->scanDirectory($this, $this->path, true);
     }
 
     /**
-     * Returns the path of the file
-     */
-    public function getPath(): string
-    {
-        return $this->path;
-    }
-
-    /**
-     * Returns the filename
+     * Returns the directory name
      */
     public function getName(): string
     {
-        return $this->name;
+        return basename($this->path);
     }
 
     /**
-     * Returns the content of the directory
+     * Returns the path of the directory with or without the current directory as part of the path
+     */
+    public function getPath(bool $includeDirectoryName = true): string
+    {
+        if ($includeDirectoryName) {
+            return $this->path;
+        }
+
+        // Only return the path excluding the current directory in the path
+        return dirname($this->path);
+    }
+
+    /**
+     * Returns the contents of the directory
      *
      * @return array<\MethorZ\FileSystem\Directory|\MethorZ\FileSystem\File>
      */
-    public function getContent(): array
+    public function getContents(): array
     {
-        return $this->content;
+        return $this->contents;
     }
 
     /**
-     * Checks if the directory has contents
+     * Adds a file or directory to the contents
      */
-    public function hasContents(): bool
+    public function addContent(self|File $content): void
     {
-        return count($this->content) > 0;
+        $this->contents[] = $content;
     }
 
     /**
-     * Checks if the directory has directories
+     * Returns the amount of files in the directory
      */
-    public function hasDirectories(): bool
+    public function countFiles(bool $countRecursively = false): int
     {
-        return count(array_filter($this->content, static fn ($item) => $item instanceof self)) > 0;
+        $fileCount = 0;
+
+        foreach ($this->contents as $content) {
+            if ($content instanceof File) {
+                $fileCount++;
+            } elseif ($content instanceof self && $countRecursively) {
+                $fileCount += $content->countFiles(true);
+            }
+        }
+
+        return $fileCount;
     }
 
     /**
-     * Checks if the directory has files
+     * Returns the amount of directories in the directory
      */
-    public function hasFiles(): bool
+    public function countDirectories(bool $countRecursively = false): int
     {
-        return count(array_filter($this->content, static fn ($item) => $item instanceof File)) > 0;
-    }
+        $directoryCount = 0;
 
-    /**
-     * Ease of use method to check if the object is a directory
-     */
-    public function isDirectory(): bool
-    {
-        return true;
-    }
+        foreach ($this->contents as $content) {
+            if ($content instanceof self) {
+                $directoryCount++;
 
-    /**
-     * Ease of use method to check if the object is a directory
-     */
-    public function isFile(): bool
-    {
-        return false;
+                if ($countRecursively) {
+                    $directoryCount += $content->countDirectories(true);
+                }
+            }
+        }
+
+        return $directoryCount;
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace MethorZ\FileSystem;
 
+use MethorZ\FileSystem\Exception\FileException;
+
 /**
  * File representation
  *
@@ -17,18 +19,12 @@ readonly class File
      * Constructor
      */
     public function __construct(
-        private readonly string $path,
-        private readonly string $name,
-        private readonly string $extension
+        private string $path
     ) {
-    }
-
-    /**
-     * Returns the path of the file
-     */
-    public function getPath(): string
-    {
-        return $this->path;
+        // Make sure the path is a file and that it exists
+        if (!is_file($this->path)) {
+            throw new FileException('The provided path is not a file or does not exist.');
+        }
     }
 
     /**
@@ -36,14 +32,24 @@ readonly class File
      */
     public function getName(bool $stripExtension = false): string
     {
+        // Extract the file name without the extension
         if ($stripExtension) {
-            return $this->name;
+            return pathinfo($this->path, PATHINFO_FILENAME);
         }
 
-        return implode('.', [
-            $this->name,
-            $this->getExtension(),
-        ]);
+        return pathinfo($this->path, PATHINFO_BASENAME);
+    }
+
+    /**
+     * Returns the path of the file
+     */
+    public function getPath(bool $includeFileName = true): string
+    {
+        if ($includeFileName) {
+            return $this->path;
+        }
+
+        return pathinfo($this->path, PATHINFO_DIRNAME);
     }
 
     /**
@@ -51,30 +57,14 @@ readonly class File
      */
     public function getExtension(): string
     {
-        return $this->extension;
+        return pathinfo($this->path, PATHINFO_EXTENSION);
     }
 
     /**
-     * Returns the contents of the file
+     * Returns the content of the file
      */
-    public function getContents(): string|bool
+    public function getContent(): string|bool
     {
-        return file_get_contents(implode('/', [$this->path, $this->getName()]));
-    }
-
-    /**
-     * Ease of use method to check if the object is a directory
-     */
-    public function isDirectory(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Ease of use method to check if the object is a directory
-     */
-    public function isFile(): bool
-    {
-        return true;
+        return file_get_contents($this->getPath());
     }
 }

@@ -6,8 +6,6 @@ namespace MethorZ\FileSystem;
 
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
 
 /**
  * Filesystem representation
@@ -19,209 +17,210 @@ use SplFileInfo;
 class FileSystem
 {
     /**
-     * Reads the directory tree specified by the provided path
+     * List of ignored extensions
      *
-     * @param array<string> $extensions
-     * @return array<\MethorZ\FileSystem\Directory|\MethorZ\FileSystem\File>
+     * @var array<string>
      */
-    public function read(string $path, array $extensions = []): array
+    private static array $ignoredExtensions = [];
+
+    /**
+     * List of ignored directories
+     *
+     * @var array<string>
+     */
+    private static array $ignoredDirectories = [];
+
+    /**
+     * List of ignored files
+     *
+     * @var array<string>
+     */
+    private static array $ignoredFiles = [];
+
+    /**
+     * Sets the list of ignored extensions
+     *
+     * @param array<string> $ignoredExtensions
+     */
+    public static function ignoreExtensions(array $ignoredExtensions): void
     {
-        $iterator = $this->createRecursiveIterator($path);
-        $tree = $this->initializeTree($path);
-        $rootKey = basename($path) . '_folder';
-
-        foreach ($iterator as $filePath => $fileInfo) {
-            $this->processFile($tree[$rootKey]['contents'], $path, $filePath, $fileInfo);
-        }
-
-        return $this->buildTreeRecursively($tree, $extensions);
+        self::$ignoredExtensions = $ignoredExtensions;
     }
 
     /**
-     * Creates a recursive iterator
-     */
-    private function createRecursiveIterator(string $path): RecursiveIteratorIterator
+     * Sets the list of ignored directories
+     *
+     * @param array<string> $ignoredDirectories
+ */
+    public static function ignoreDirectories(array $ignoredDirectories): void
     {
-        return new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
-        );
+        self::$ignoredDirectories = $ignoredDirectories;
     }
 
     /**
-     * Initializes the tree structure
+     * Sets the list of ignored files
+     *
+     * @param array<string> $ignoredFiles
      */
-    private function initializeTree(string $path): array
+    public static function ignoreFiles(array $ignoredFiles): void
     {
-        $baseName = basename($path);
-        return [
-            $baseName . '_folder' => [
-                'contents' => [],
-                'filename' => $baseName,
-                'path' => $path,
-                'type' => 'folder',
-            ]
-        ];
+        self::$ignoredFiles = $ignoredFiles;
     }
 
     /**
-     * Processes the file and updates the tree structure
+     * Checks if the provided path is a directory
      */
-    private function processFile(array &$treeContents, string $basePath, string $filePath, SplFileInfo $fileInfo): void
+    public static function isDirectory(string $path): bool
     {
-        $relativePath = substr($filePath, strlen($basePath) + 1);
-        $parts = explode(DIRECTORY_SEPARATOR, $relativePath);
-        $current = &$treeContents;
-
-        $pathSoFar = $basePath;
-        foreach ($parts as $index => $part) {
-            $isLastPart = ($index === count($parts) - 1);
-            $pathSoFar .= DIRECTORY_SEPARATOR . $part;
-            $name = pathinfo($part, PATHINFO_FILENAME);
-            $type = $isLastPart ? ($fileInfo->isDir() ? 'folder' : 'file') : 'folder';
-            $uniqueKey = $name . '_' . $type;
-
-            if (!isset($current[$uniqueKey])) {
-                $current[$uniqueKey] = $this->createNewEntry($name, $pathSoFar, $type);
-            }
-
-            $this->updateTreeStructure($current[$uniqueKey], $name, $pathSoFar, $fileInfo, $isLastPart);
-
-            if (!$isLastPart) {
-                if (!isset($current[$uniqueKey]['contents'])) {
-                    $current[$uniqueKey]['contents'] = [];
-                }
-                $current = &$current[$uniqueKey]['contents'];
-            }
-        }
+        return is_dir($path);
     }
 
     /**
-     * Builds the path based on the parts
+     * Checks if the provided path is a file
      */
-    private function buildPath(string $basePath, array $parts, int $index, bool $isLastPart, bool $isFile): string
+    public static function isFile(string $path): bool
     {
-        $path = $basePath . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, array_slice($parts, 0, $index + 1));
-
-        return $isLastPart && $isFile ? dirname($path) : $path;
+        return is_file($path);
     }
 
     /**
-     * Updates the tree structure
+     * Create a directory allowing recursive creation
      */
-    private function updateTreeStructure(array &$current, string $name, string $path, SplFileInfo $fileInfo, bool $isLastPart): void
+    public static function createDirectory(string $path, int $permissions = 0777, bool $recursiveCreation = true): bool
     {
-        $type = $isLastPart ? ($fileInfo->isDir() ? 'folder' : 'file') : 'folder';
-
-        $current['filename'] = $name;
-        $current['path'] = $type === 'file' ? dirname($path) : $path;
-        $current['type'] = $type;
-
-        if ($type === 'file') {
-            $current['extension'] = pathinfo($fileInfo->getFilename(), PATHINFO_EXTENSION);
-        } elseif (!isset($current['contents'])) {
-            $current['contents'] = [];
-        }
-    }
-
-    /**
-     * Creates a new entry for the tree structure
-     */
-    private function createNewEntry(string $name, string $path, string $type): array
-    {
-        $entry = [
-            'filename' => $name,
-            'path' => $path,
-            'type' => $type,
-        ];
-
-        if ($type === 'folder') {
-            $entry['contents'] = [];
-        }
-
-        return $entry;
-    }
-
-    /**
-     * Writes the content to the filesystem
-     */
-    public function write(string $path, string $filename, string $content): void
-    {
-        $fullPath = $path . DIRECTORY_SEPARATOR . $filename;
-
         if (!file_exists($path)) {
-            mkdir($path, 0777, true);
+            return mkdir($path, $permissions, $recursiveCreation);
         }
 
-        file_put_contents($fullPath, $content);
+        return true;
     }
 
     /**
-     * Copies the source folder to the destination
+     * Remove a file or directory recursively
      */
-    public function copy(string $source, string $destination): void
+    public static function remove(string $path): bool
     {
-        $this->copyRecursively($source, $destination);
+        return is_dir($path)
+            ? self::removeDirectory($path)
+            : unlink($path);
     }
 
     /**
-     * Recursively builds the tree based on directory and file objects
-     *
-     * @param array<array<mixed>> $tree
-     * @param array<string> $extensions
-     * @return array<\MethorZ\FileSystem\Directory|\MethorZ\FileSystem\File>
+     * Copy a file or directory recursively while making sure the destination directory exists
      */
-    private function buildTreeRecursively(array $tree, array $extensions): array
+    public static function copy(string $source, string $destination, int $permissions = 0777): void
     {
-        $fileSystem = [];
+        if (is_dir($source)) {
+            self::copyDirectory($source, $destination, $permissions);
+        } else {
+            $destinationDirectory = dirname($destination);
 
-        // Build the directory structure
-        foreach ($tree as $treeItem) {
-            // Skip files that are not part of the allowed extensions
+            if (!is_dir($destinationDirectory)) {
+                mkdir($destinationDirectory, $permissions, true);
+            }
+
+            copy($source, $destination);
+        }
+    }
+
+    /**
+     * Rename a file or directory
+     */
+    public static function rename(string $source, string $destination): bool
+    {
+        return rename($source, $destination);
+    }
+
+    /**
+     * Recursively scans the directory and adds files and subdirectories to the Directory object
+     */
+    protected function scanDirectory(Directory $directory, string $path, bool $recursiveScan): void
+    {
+        $iterator = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS);
+
+        foreach ($iterator as $fileInfo) {
+            $filePath = $fileInfo->getPathname();
+            $fileName = $fileInfo->getFilename();
+
+            // Skip ignored directories
+            if ($fileInfo->isDir() && in_array($fileName, self::$ignoredDirectories, true)) {
+                continue;
+            }
+
+            // Skip ignored files
+            if ($fileInfo->isFile() && in_array($fileName, self::$ignoredFiles, true)) {
+                continue;
+            }
+
+            // Skip files with ignored extensions
             if (
-                $treeItem['type'] === 'file'
-                && !empty($extensions)
-                && !in_array($treeItem['extension'] ?? '', $extensions, true)
+                $fileInfo->isFile()
+                && !empty(self::$ignoredExtensions)
+                && in_array($fileInfo->getExtension(), self::$ignoredExtensions, true)
             ) {
                 continue;
             }
 
-            $fileSystem[] =
-                $treeItem['type'] === 'file'
-                    ? new File($treeItem['path'], $treeItem['filename'], $treeItem['extension'] ?? null)
-                    : new Directory(
-                    $treeItem['path'],
-                    $treeItem['filename'],
-                    $this->buildTreeRecursively(
-                        $treeItem['contents'] ?? [],
-                        $extensions
-                    )
-                );
+            if ($fileInfo->isDir() && $recursiveScan) {
+                $subDirectory = new Directory($filePath);
+                $directory->addContent($subDirectory);
+            } elseif (
+                $fileInfo->isFile()
+                && (
+                    empty($extensions)
+                    || in_array($fileInfo->getExtension(), $extensions, true)
+                )
+            ) {
+                $file = new File($filePath);
+                $directory->addContent($file);
+            } elseif ($fileInfo->isDir() && !$recursiveScan) {
+                $subDirectory = new Directory($filePath);
+                $directory->addContent($subDirectory);
+            }
         }
-
-        return $fileSystem;
     }
 
     /**
-     * Recursively copy the source folder to the destination
+     * Copy a directory recursively
      */
-    private function copyRecursively(string $source, string $destination): void
+    private static function copyDirectory(string $source, string $destination, int $permissions = 0777): void
     {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
-        );
+        $iterator = new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS);
 
         foreach ($iterator as $item) {
-            $destPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
+            $destPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
 
             if ($item->isDir()) {
                 if (!file_exists($destPath)) {
-                    mkdir($destPath, 0777, true);
+                    mkdir($destPath, $permissions, true);
                 }
             } else {
+                $destinationPath = dirname($destPath);
+
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, $permissions, true);
+                }
+
                 copy($item->getPathname(), $destPath);
             }
         }
+    }
+
+    /**
+     * Remove a directory recursively
+     */
+    private static function removeDirectory(string $path): bool
+    {
+        $iterator = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS);
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                self::removeDirectory($item->getPathname());
+            } else {
+                unlink($item->getPathname());
+            }
+        }
+
+        return rmdir($path);
     }
 }
