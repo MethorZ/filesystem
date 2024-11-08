@@ -108,7 +108,7 @@ class FileSystem
     /**
      * Copy a file or directory recursively while making sure the destination directory exists
      */
-    public static function copy(string $source, string $destination, int $permissions = 0777): void
+    public static function copy(string $source, string $destination, bool $overwrite = true, int $permissions = 0777): void
     {
         if (is_dir($source)) {
             self::copyDirectory($source, $destination, $permissions);
@@ -117,6 +117,11 @@ class FileSystem
 
             if (!is_dir($destinationDirectory)) {
                 mkdir($destinationDirectory, $permissions, true);
+            }
+
+            // Skip if the file already exists and we don't want to overwrite
+            if (!$overwrite && file_exists($destination)) {
+                return;
             }
 
             copy($source, $destination);
@@ -129,6 +134,20 @@ class FileSystem
     public static function rename(string $source, string $destination): bool
     {
         return rename($source, $destination);
+    }
+
+    /**
+     * Writes a file with the provided content - makes sure the target directory exists
+     */
+    public static function write(string $path, string $content, int $permissions = 0777): void
+    {
+        $directory = dirname($path);
+
+        if (!is_dir($directory)) {
+            mkdir($directory, $permissions, true);
+        }
+
+        file_put_contents($path, $content);
     }
 
     /**
@@ -194,6 +213,7 @@ class FileSystem
                 if (!file_exists($destPath)) {
                     mkdir($destPath, $permissions, true);
                 }
+                self::copyDirectory($item->getPathname(), $destPath);
             } else {
                 $destinationPath = dirname($destPath);
 
